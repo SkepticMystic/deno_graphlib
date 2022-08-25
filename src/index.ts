@@ -1,5 +1,6 @@
 import { DEFAULT_GRAPH_OPTIONS } from "./const.ts";
-import { Edge, GraphOptions, IGraph } from './interfaces.ts';
+import { Edge, GraphOptions, IGraph, NodeMeasure, TraversalCallback } from './interfaces.ts';
+import { setIntersection, sum } from "./utils.ts";
 
 export class Graph<Node = string> {
     nodes: Set<Node> = new Set();
@@ -94,5 +95,134 @@ export class Graph<Node = string> {
             }
         }
         return edges;
+    }
+
+    // Neighbours
+    getOutNeighbours(node: Node): Set<Node> {
+        return this.adjList.get(node) ?? new Set();
+    }
+
+    getInNeighbours(node: Node): Set<Node> {
+        const inNeighbours: Set<Node> = new Set();
+        for (const [from, toSet] of this.adjList) {
+            if (toSet.has(node)) inNeighbours.add(from);
+        }
+        return inNeighbours;
+    }
+
+    getNeighbours(node: Node): Set<Node> {
+        return new Set([...this.getOutNeighbours(node), ...this.getInNeighbours(node)]);
+    }
+
+    // Algorithms
+    dfs(start: Node, callback?: TraversalCallback<Node>): Set<Node> {
+        const visited: Set<Node> = new Set();
+        const stack = [start];
+
+        let prevNode: Node | undefined;
+        while (stack.length) {
+            const node = stack.shift() as Node;
+            if (visited.has(node)) continue;
+            visited.add(node);
+            if (callback) callback(node, prevNode);
+            stack.push(...this.getOutNeighbours(node));
+            prevNode = node;
+        }
+
+        return visited;
+    }
+
+    bfs(start: Node, callback?: TraversalCallback<Node>): Set<Node> {
+        const visited: Set<Node> = new Set();
+        const stack = [start];
+
+        let prevNode: Node | undefined;
+        while (stack.length) {
+            const node = stack.pop() as Node;
+            if (visited.has(node)) continue;
+            visited.add(node);
+            if (callback) callback(node, prevNode);
+            stack.push(...this.getOutNeighbours(node));
+            prevNode = node;
+        }
+
+        return visited;
+    }
+
+    private JaccardMeasure(Na: Set<Node>, Nb: Set<Node>) {
+        const Nab = setIntersection(Na, Nb)
+        const denom = Na.size + Nb.size - Nab.size
+        return denom !== 0 ? Nab.size / denom : Infinity
+    }
+
+    Jaccard(a: Node, b: Node) {
+        const Na = this.getNeighbours(a)
+        const Nb = this.getNeighbours(b)
+        return this.JaccardMeasure(Na, Nb)
+    }
+
+    // Similarity
+    JaccardAll(node: Node): NodeMeasure<Node>[] {
+        return this.NodeMeasureAll(node, 'Jaccard')
+    }
+
+    private OverlapMeasure(Na: Set<Node>, Nb: Set<Node>) {
+        const Nab = setIntersection(Na, Nb)
+        return Na.size !== 0 && Nb.size !== 0
+            ? Nab.size ** 2 / Math.min(Na.size, Nb.size)
+            : Infinity
+    }
+
+    Overlap(a: Node, b: Node) {
+        const Na = this.getNeighbours(a)
+        const Nb = this.getNeighbours(b)
+        return this.OverlapMeasure(Na, Nb)
+    }
+
+    OverlapAll(node: Node): NodeMeasure<Node>[] {
+        return this.NodeMeasureAll(node, 'Overall')
+    }
+
+    private AdamicAdarMeasure(Na: Set<Node>, Nb: Set<Node>) {
+        const Nab = setIntersection(Na, Nb)
+
+        let measure = Infinity
+        if (Nab.size) {
+            const outDegreeInverses: number[] = [...Nab].map((n) => {
+                const { size } = this.getOutNeighbours(n)
+                return 1 / Math.log(size)
+            })
+
+            measure = sum(outDegreeInverses)
+        }
+        return measure
+    }
+
+    AdamicAdar(a: Node, b: Node) {
+        const Na = this.getNeighbours(a)
+        const Nb = this.getNeighbours(b)
+        return this.AdamicAdarMeasure(Na, Nb)
+    }
+
+    AdamicAdarAll(node: Node): NodeMeasure<Node>[] {
+        return this.NodeMeasureAll(node, 'AdamicAdar')
+    }
+
+    private NodeMeasureAll(node: Node, measureName: 'Jaccard' | 'Overall' | 'AdamicAdar'): NodeMeasure<Node>[] {
+        const results: NodeMeasure<Node>[] = []
+        const Na = this.getNeighbours(node)
+
+        this.nodes.forEach((to) => {
+            const Nb = this.getNeighbours(to)
+            let measure: number
+            switch (measureName) {
+                case 'Jaccard': measure = this.JaccardMeasure(Na, Nb); break;
+                case 'Overall': measure = this.OverlapMeasure(Na, Nb); break;
+                case 'AdamicAdar': measure = this.AdamicAdarMeasure(Na, Nb); break;
+            }
+
+            results.push({ node: to, measure })
+        })
+        return results
     }
 }
