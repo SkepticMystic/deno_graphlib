@@ -1,10 +1,12 @@
+import { nanoid } from "https://deno.land/x/nanoid@v3.0.0/mod.ts";
+import { equal } from "https://deno.land/x/equal@v1.5.0/mod.ts";
 import { DEFAULT_GRAPH_OPTIONS } from "./const.ts";
-import { Edge, GraphOptions, IGraph, NodeMeasure, TraversalCallback } from './interfaces.ts';
+import { Edge, GraphOptions, Id, IGraph, Label, NodeMeasure, TraversalCallback } from './interfaces.ts';
 import { setIntersection, sum } from "./utils.ts";
 
-export class Graph<Node = string> {
-    nodes: Set<Node> = new Set();
-    adjList: Map<Node, Set<Node>> = new Map();
+export class Graph<Node> {
+    nodes: Map<Id, Node> = new Map();
+    adjList: Map<Id, Set<Id>> = new Map();
     options: Required<GraphOptions>
 
     constructor({ nodes, edges, options }: IGraph<Node>) {
@@ -14,41 +16,62 @@ export class Graph<Node = string> {
         if (edges) this.addEdges(edges);
     }
 
-    addNode(node: Node) {
-        // A set won't add a Node if it already exists,
-        // But this return prevents the adjList item from being overwritten
-        if (this.hasNode(node)) return this;
-
-        this.nodes.add(node);
-        this.adjList.set(node, new Set());
-
-        return this
+    private newNodeId() {
+        return nanoid(this.options.nodeIdLength)
     }
-    addNodes(nodes: Node[] | Set<Node>) {
-        for (const node of nodes) this.addNode(node);
-        return this
+
+    /** Finds a node using deep equal, and returns its id, if it exists */
+    private findNodeId(node: Node) {
+        for (const [id, n] of this.nodes) {
+            if (equal(n, node)) return id
+        }
+        return undefined
     }
 
     hasNode(node: Node) {
-        return this.nodes.has(node);
+        return this.findNodeId(node) !== undefined
     }
     hasNodes(nodes: Node[] | Set<Node>): boolean {
-        for (const Node of nodes) if (!this.hasNode(Node)) return false;
+        for (const n of nodes) if (!this.hasNode(n)) return false;
         return true;
     }
 
-    removeNode(node: Node) {
-        this.nodes.delete(node);
-        this.adjList.delete(node);
+    /** Prevents duplicate nodes from being added using deep equal 
+     * @returns the id of the new node, or the id of the existing node if it already exists
+    */
+    addNode(node: Node): Id {
+        let id = this.findNodeId(node);
+        if (id) return id
 
-        for (const [from, toSet] of this.adjList) toSet.delete(node);
+        id = this.newNodeId();
+        this.nodes.set(id, node);
+        this.adjList.set(id, new Set());
+
+        return id
+    }
+
+    /** @returns the ids of the new nodes, or the ids of the existing nodes if they already exists */
+    addNodes(nodes: Node[] | Set<Node>): string[] {
+        const newIds = [];
+        for (const node of nodes) newIds.push(this.addNode(node))
+        return newIds
+    }
+
+    removeNode(node: Node) {
+        const id = this.findNodeId(node);
+        if (!id) return this
+
+        this.nodes.delete(id);
+        this.adjList.delete(id);
+
+        for (const [_from, toSet] of this.adjList) toSet.delete(id);
         return this
     }
 
     /** Safely adds the nodes required for the edge to exist */
     private safeAddEdge({ from, to }: Edge<Node>) {
-        this.addNodes([from, to]);
-        (<Set<Node>>this.adjList.get(from)).add(to);
+        const [fromId, toId] = this.addNodes([from, to]);
+        (<Set<string>>this.adjList.get(fromId)).add(toId);
     }
 
     addEdge(edge: Edge<Node>, addNodesIfMissing = this.options.addNodesIfMissing) {
@@ -70,16 +93,20 @@ export class Graph<Node = string> {
 
     hasEdge(edge: Edge<Node>): boolean {
         const { from, to } = edge;
+        const [fromId, toId] = [this.findNodeId(from), this.findNodeId(to)];
+        if (!fromId || !toId) return false;
 
-        if (this.adjList.get(from)?.has(to)) return true
-        else return this.options.directed ? false : this.adjList.get(to)?.has(from) ?? false;
+        if (this.adjList.get(fromId)?.has(toId)) return true
+        else return this.options.directed ? false : (this.adjList.get(toId)?.has(fromId) ?? false)
     }
 
     removeEdge(edge: Edge<Node>) {
         const { from, to } = edge;
+        const [fromId, toId] = [this.findNodeId(from), this.findNodeId(to)];
+        if (!fromId || !toId) return this
 
-        this.adjList.get(from)?.delete(to);
-        if (!this.options.directed) this.adjList.get(to)?.delete(from);
+        this.adjList.get(fromId)?.delete(toId);
+        if (!this.options.directed) this.adjList.get(toId)?.delete(fromId);
         return this
     }
 
@@ -88,8 +115,9 @@ export class Graph<Node = string> {
         const { directed } = this.options;
         const edges = [];
 
-        for (const [from, toSet] of this.adjList) {
-            for (const to of toSet) {
+        for (const [fromId, toSet] of this.adjList) {
+            for (const toId of toSet) {
+                const [from, to] = [this.nodes.get(fromId), this.nodes.get(toId)] as [Node, Node];
                 edges.push({ from, to });
                 if (!directed) edges.push({ from: to, to: from });
             }
@@ -99,14 +127,27 @@ export class Graph<Node = string> {
 
     // Neighbours
     getOutNeighbours(node: Node): Set<Node> {
-        return this.adjList.get(node) ?? new Set();
+        const outNeighbours: Set<Node> = new Set();
+
+        const fromId = this.findNodeId(node);
+        if (!fromId) return outNeighbours;
+
+        for (const toId of this.adjList.get(fromId) ?? []) {
+            outNeighbours.add(this.nodes.get(toId) as Node);
+        }
+        return outNeighbours;
     }
 
     getInNeighbours(node: Node): Set<Node> {
         const inNeighbours: Set<Node> = new Set();
-        for (const [from, toSet] of this.adjList) {
-            if (toSet.has(node)) inNeighbours.add(from);
+
+        const nodeId = this.findNodeId(node);
+        if (!nodeId) return inNeighbours;
+
+        for (const [fromId, toSet] of this.adjList) {
+            if (toSet.has(nodeId)) inNeighbours.add(this.nodes.get(fromId) as Node);
         }
+
         return inNeighbours;
     }
 
@@ -224,5 +265,40 @@ export class Graph<Node = string> {
             results.push({ node: to, measure })
         })
         return results
+    }
+
+
+    private countValues<V>(values: IterableIterator<V>): Map<V, number> {
+        const counts: Map<V, number> = new Map();
+        for (const v of values) {
+            counts.set(v, (counts.get(v) ?? 0) + 1);
+        }
+        return counts;
+    }
+
+    labelPropagation(iterations = 15, getLabel: (node: Node) => Label = (node) => <string>this.findNodeId(node)) {
+        // Set up initial labels
+        const labels: Map<Id, Label> = new Map();
+        for (const [id, node] of this.nodes) {
+            labels.set(id, getLabel(node));
+        }
+
+
+        for (let i = 0; i < iterations; i++) {
+            const newLabels: Map<Id, Label> = new Map();
+            for (const [id, node] of this.nodes) {
+                const neighbours = this.getNeighbours(node);
+                const neighbourLabels = [...neighbours].map((n) => labels.get(this.findNodeId(n) as Id) as Label);
+
+                const labelCounts = this.countValues(neighbourLabels.values());
+                const maxLabel = Math.max(...labelCounts.values());
+
+                newLabels.set(id, maxLabel);
+            }
+            labels.clear();
+            newLabels.forEach((v, k) => labels.set(k, v));
+        }
+
+        return [...labels].map(([id, label]) => ({ node: (<Node>this.nodes.get(id)), label }));
     }
 }
