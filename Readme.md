@@ -69,8 +69,6 @@ Run a depth/breadth first search, starting from a particular node.
 The traversal algorithm takes an optional callback function, which is called on each node as it is visited.
 `(node: Node) => void`
 
-### Depth-first search
-
 ```ts
 const g = new Graph();
 g.addNodes(["a", "b", "c", "d", "e", "f"]);
@@ -85,20 +83,6 @@ g.addEdges([
 const dfs = g.dfs("a");
 console.log(dfs);
 // [ 'a', 'b', 'd', 'e', 'c', 'f' ]
-```
-
-### Breadth-first search
-
-```ts
-const g = new Graph();
-g.addNodes(["a", "b", "c", "d", "e", "f"]);
-g.addEdges([
-  { from: "a", to: "b" },
-  { from: "a", to: "c" },
-  { from: "b", to: "d" },
-  { from: "b", to: "e" },
-  { from: "c", to: "f" },
-]);
 
 const bfs = g.bfs("a");
 console.log(bfs);
@@ -109,7 +93,15 @@ console.log(bfs);
 
 The `Graph` class provides a few algorithms:
 
-- `Jaccard(a: Node, b: Node) => number`
-- `overlap(a: Node, b: Node) => number`
-- `AdamicAdar(a: Node, b: Node) => number`
-- `labelPropagation(iterations: number, getLabel: (node) => string | number) => Map<Node, number>`
+### Similarity
+
+- `Jaccard(a: Node, b: Node) => number` [wiki](https://en.wikipedia.org/wiki/Jaccard_index)
+- `overlap(a: Node, b: Node) => number` [wiki](https://en.wikipedia.org/wiki/Overlap_coefficient)
+
+### Link Prediction
+
+- `AdamicAdar(a: Node, b: Node) => number` [wiki](https://en.wikipedia.org/wiki/Adamic%E2%80%93Adar_index)
+
+### Community Detection
+
+- `labelPropagation(iterations: number, getLabel: (node) => string | number) => Map<Node, number>` [wiki](https://en.wikipedia.org/wiki/Label_propagation_algorithm)
