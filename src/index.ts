@@ -162,14 +162,12 @@ export class Graph<Node> {
         const visited: Set<Node> = new Set();
         const stack = [start];
 
-        let prevNode: Node | undefined;
         while (stack.length) {
             const node = stack.shift() as Node;
             if (visited.has(node)) continue;
             visited.add(node);
-            if (callback) callback(node, prevNode);
+            if (callback) callback(node);
             stack.push(...this.getOutNeighbours(node));
-            prevNode = node;
         }
 
         return visited;
@@ -179,14 +177,12 @@ export class Graph<Node> {
         const visited: Set<Node> = new Set();
         const stack = [start];
 
-        let prevNode: Node | undefined;
         while (stack.length) {
             const node = stack.pop() as Node;
             if (visited.has(node)) continue;
             visited.add(node);
-            if (callback) callback(node, prevNode);
+            if (callback) callback(node);
             stack.push(...this.getOutNeighbours(node));
-            prevNode = node;
         }
 
         return visited;

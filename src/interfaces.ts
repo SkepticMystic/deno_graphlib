@@ -7,10 +7,7 @@ export type GraphOptions = {
 }
 export interface IGraph<Node> { nodes?: Node[] | Set<Node>, edges?: Edge<Node>[], options?: GraphOptions }
 
-export type TraversalCallback<Node> = (
-    node: Node,
-    prevNode: Node | undefined
-) => void
+export type TraversalCallback<Node> = (node: Node) => void
 
 export type ResultMap = Record<string, number>
 export type NodeMeasure<Node> = { node: Node, measure: number }

@@ -61,3 +61,55 @@ console.log(g.adjList);
 ```
 
 The adjacency list uses node ids, so you may need to map that id to the corresponding node object, using the `graph.nodes: Map<Id, Node>` map.
+
+## Traversal
+
+Run a depth/breadth first search, starting from a particular node.
+
+The traversal algorithm takes an optional callback function, which is called on each node as it is visited.
+`(node: Node) => void`
+
+### Depth-first search
+
+```ts
+const g = new Graph();
+g.addNodes(["a", "b", "c", "d", "e", "f"]);
+g.addEdges([
+  { from: "a", to: "b" },
+  { from: "a", to: "c" },
+  { from: "b", to: "d" },
+  { from: "b", to: "e" },
+  { from: "c", to: "f" },
+]);
+
+const dfs = g.dfs("a");
+console.log(dfs);
+// [ 'a', 'b', 'd', 'e', 'c', 'f' ]
+```
+
+### Breadth-first search
+
+```ts
+const g = new Graph();
+g.addNodes(["a", "b", "c", "d", "e", "f"]);
+g.addEdges([
+  { from: "a", to: "b" },
+  { from: "a", to: "c" },
+  { from: "b", to: "d" },
+  { from: "b", to: "e" },
+  { from: "c", to: "f" },
+]);
+
+const bfs = g.bfs("a");
+console.log(bfs);
+// [ 'a', 'b', 'c', 'd', 'e', 'f' ]
+```
+
+## Algorithms
+
+The `Graph` class provides a few algorithms:
+
+- `Jaccard(a: Node, b: Node) => number`
+- `overlap(a: Node, b: Node) => number`
+- `AdamicAdar(a: Node, b: Node) => number`
+- `labelPropagation(iterations: number, getLabel: (node) => string | number) => Map<Node, number>`
