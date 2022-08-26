@@ -9,7 +9,9 @@ export class Graph<Node> {
     adjList: Map<Id, Set<Id>> = new Map();
     options: Required<GraphOptions>
 
-    constructor({ nodes, edges, options }: IGraph<Node>) {
+    constructor(setup?: IGraph<Node>) {
+        const { edges, nodes, options } = setup ?? {};
+
         this.options = Object.assign(DEFAULT_GRAPH_OPTIONS, options ?? {})
 
         if (nodes) this.addNodes(nodes);
@@ -21,7 +23,7 @@ export class Graph<Node> {
     }
 
     /** Finds a node using deep equal, and returns its id, if it exists */
-    private findNodeId(node: Node) {
+    findNodeId(node: Node) {
         for (const [id, n] of this.nodes) {
             if (equal(n, node)) return id
         }
