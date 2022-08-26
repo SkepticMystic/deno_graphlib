@@ -5,7 +5,7 @@ export type GraphOptions = {
     directed?: boolean;
     nodeIdLength?: number;
 }
-export interface IGraph<Node> { nodes?: Node[] | Set<Node>, edges?: Edge<Node>[], options?: GraphOptions }
+export interface IGraph<Node> { nodes?: Node[] | Set<Node>, edges?: Edge<Node>[], options?: GraphOptions, newNodeId?: (node?: Node) => string }
 
 export type TraversalCallback<Node> = (node: Node) => void
 

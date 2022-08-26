@@ -10,15 +10,16 @@ export class Graph<Node> {
     options: Required<GraphOptions>
 
     constructor(setup?: IGraph<Node>) {
-        const { edges, nodes, options } = setup ?? {};
+        const { edges, nodes, options, newNodeId } = setup ?? {};
 
         this.options = Object.assign(DEFAULT_GRAPH_OPTIONS, options ?? {})
 
         if (nodes) this.addNodes(nodes);
         if (edges) this.addEdges(edges);
+        if (newNodeId) this.newNodeId = newNodeId;
     }
 
-    private newNodeId() {
+    private newNodeId(node?: Node) {
         return nanoid(this.options.nodeIdLength)
     }
 
@@ -45,7 +46,7 @@ export class Graph<Node> {
         let id = this.findNodeId(node);
         if (id) return id
 
-        id = this.newNodeId();
+        id = this.newNodeId(node);
         this.nodes.set(id, node);
         this.adjList.set(id, new Set());
 

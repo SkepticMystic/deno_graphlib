@@ -38,6 +38,7 @@ g.addEdges([
 
 Internally, nodes are assigned a random id to identify them.
 If you need to find a node's id from the node object, use `graph.findNodeId(node)`.
+You can also pass in a `newNodeId(node) => string` function to the constructor to override how node ids are generated.
 
 ## Edges
 
